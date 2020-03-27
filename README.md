@@ -18,7 +18,7 @@ docker run -d --name rbldnsaggregator bluewalk/rbldnsaggregator -e DNS_SUFFIX=my
 | UPSTREAM_DNS | Upstream DNS server | `8.8.8.8` |
 | PORT | Port for the DNS server | `53` |
 | RBL_LIST | Comma or semicolumn separated list of RBL servers | `bl.spamcop.net` |
-
+| LOG_LEVEL | One of the following levels `Debug`, `Error`, `Fatal`, `Information`, `Verbose`, `Warning` | `Information` |
 
 ## Uninstall
 1. Stop the running container

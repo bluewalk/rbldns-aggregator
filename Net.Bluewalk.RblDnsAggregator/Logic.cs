@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using DNS.Client;
@@ -111,10 +110,11 @@ namespace Net.Bluewalk.RblDnsAggregator
 
         private ResponseItem Search(string query, RecordType recordType)
         {
+            _logger.LogInformation($"Checking blacklisting for {query}");
             var result = _cache.FirstOrDefault(c => c.Query.Equals(query));
             if (result != null)
             {
-                _logger.LogDebug("Cached item found");
+                _logger.LogInformation("Cached item found");
                 return result;
             }
 
@@ -122,7 +122,7 @@ namespace Net.Bluewalk.RblDnsAggregator
 
             foreach (var rbl in _rblList)
             {
-                _logger.LogDebug($"Checking {rbl}");
+                _logger.LogInformation($"Checking {rbl}");
                 try
                 {
                     var resolves = _dnsClient.Lookup($"{query}.{rbl}", recordType).Result;
@@ -130,7 +130,7 @@ namespace Net.Bluewalk.RblDnsAggregator
                     if (!resolves.Any()) continue;
                     var rblMessage = SearchTxt($"{query}.{rbl}");
 
-                    _logger.LogDebug("Found a match");
+                    _logger.LogInformation("Found a match");
                     result = new ResponseItem(query, rbl, rblMessage?.ToStringTextData(), resolves.First());
                     _cache.Add(result);
 
@@ -142,6 +142,7 @@ namespace Net.Bluewalk.RblDnsAggregator
                 }
             }
 
+            _logger.LogInformation("No matches found");
             return null;
         }
 
@@ -162,12 +163,18 @@ namespace Net.Bluewalk.RblDnsAggregator
                 {
                     case RecordType.A:
                     case RecordType.AAAA:
+                        _logger.LogInformation($"A/AAAA response: {responseItem.Result}");
+
                         response.AnswerRecords.Add(new IPAddressResourceRecord(question.Name, responseItem.Result));
                         break;
 
                     case RecordType.TXT:
+                        var txtResponse = responseItem.RblMessage ?? $"Blocked by {responseItem.Rbl}";
+
+                        _logger.LogInformation($"TXT response: {txtResponse}");
+
                         response.AnswerRecords.Add(new TextResourceRecord(question.Name,
-                            CharacterString.FromString(responseItem.RblMessage ?? $"Blocked by {responseItem.Rbl}")));
+                            CharacterString.FromString(txtResponse)));
                         break;
 
                     default:

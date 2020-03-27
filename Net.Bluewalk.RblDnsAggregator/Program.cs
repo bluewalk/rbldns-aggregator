@@ -1,11 +1,11 @@
 ﻿using System;
 using System.Diagnostics;
-using System.IO;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
+using Net.Bluewalk.DotNetEnvironmentExtensions;
+using Serilog;
+using Serilog.Events;
 
 namespace Net.Bluewalk.RblDnsAggregator
 {
@@ -17,32 +17,23 @@ namespace Net.Bluewalk.RblDnsAggregator
             Console.WriteLine($"RBL DNS Aggregator {version}");
             Console.WriteLine("https://github.com/bluewalk/rbldns-aggregator\n");
 
+            Log.Logger = new LoggerConfiguration()
+                .Enrich.FromLogContext()
+                .MinimumLevel.Debug()
+                .WriteTo.ColoredConsole(
+                    EnvironmentExtensions.GetEnvironmentVariable<LogEventLevel>("LOG_LEVEL", LogEventLevel.Information)
+                ).CreateLogger();
+
+            AppDomain.CurrentDomain.DomainUnload += (sender, eventArgs) => Log.CloseAndFlush();
 
             var builder = new HostBuilder()
-                .ConfigureAppConfiguration((hostingContext, config) =>
-                {
-                    config.AddEnvironmentVariables();
-
-                    if (File.Exists("config.json"))
-                        config.AddJsonFile("config.json", false, true);
-
-                    if (args != null)
-                    {
-                        config.AddCommandLine(args);
-                    }
-                })
                 .ConfigureServices((hostContext, services) =>
                 {
                     services.AddOptions();
 
-                    //services.Replace(ServiceDescriptor.Singleton(typeof(ILogger<>), typeof(DateTimeLogger<>)));
-
                     services.AddSingleton<IHostedService, Logic>();
                 })
-                .ConfigureLogging((hostingContext, logging) => {
-                    logging.AddConfiguration(hostingContext.Configuration.GetSection("Logging"));
-                    logging.AddConsole();
-                });
+                .UseSerilog();
 
             await builder.RunConsoleAsync();
         }
